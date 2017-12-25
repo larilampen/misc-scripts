@@ -7,6 +7,14 @@
 # and that each server has the same amount of disk space to be allocated
 # for plot files. All this script does is ensure the plots do not overlap.
 
+# Usage:
+# perl burst-plot.pl [[first chunk] chunks]
+
+# Running without parameters creates a huge plot in a single file. Specifying
+# a number creates that many separate files ("chunks"). Specifying two numbers
+# does the same but starts at the specified chunk (numbering starts from 1)
+# rather than the first one.
+
 # Lari Lampen, 2017
 
 use strict;
@@ -25,6 +33,14 @@ my $bin = $ENV{'HOME'} . "/git/mdcct/plotavx2";
 # Number of threads to use.
 my $threads = `nproc` - 1;
 
+my $chunks = 1;
+my $firstchunk = 0;
+if ($#ARGV>=1) {
+	$firstchunk = int($ARGV[0])-1;
+	$chunks = int($ARGV[1]);
+} elsif ($#ARGV>=0) {
+	$chunks = int($ARGV[0]);
+}
 
 my $hostnum;
 if (`hostname` =~ /([1-9]\d*)/) {
@@ -35,10 +51,20 @@ if (`hostname` =~ /([1-9]\d*)/) {
 my $nonces = int($tb * 4 * 1024**2);
 my $startplot = ($hostnum - 1) * ($nonces + 1);
 
-my $cmd = "nice $bin -k $key -x 1 -d $plotdir -s $startplot -n $nonces -t $threads";
-
 make_path($plotdir) unless -f $plotdir;
 
-print $cmd,"\n";
-
-system($cmd);
+if ($chunks > 1) {
+	my $nonces_per_chunk = int($nonces/$chunks);
+	for (my $i=$firstchunk; $i<$chunks; $i++) {
+		my $startchunk = $startplot+$i*$nonces_per_chunk;
+		# adjust size of last chunk so that there is no rounding error
+		my $nonces_this_chunk = ($i == $chunks-1) ? ($nonces-$startchunk) : $nonces_per_chunk;
+		my $cmd = "nice $bin -k $key -x 1 -d $plotdir -s $startchunk -n $nonces_this_chunk -t $threads";
+		print "Plotting chunk ",$i+1,"/$chunks: $cmd\n";
+		system($cmd);
+	}
+} else {
+	my $cmd = "nice $bin -k $key -x 1 -d $plotdir -s $startplot -n $nonces -t $threads";
+	print "Plotting single file: $cmd\n";
+	system($cmd);
+}
