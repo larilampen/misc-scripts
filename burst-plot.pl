@@ -58,7 +58,7 @@ if ($chunks > 1) {
 	for (my $i=$firstchunk; $i<$chunks; $i++) {
 		my $startchunk = $startplot+$i*$nonces_per_chunk;
 		# adjust size of last chunk so that there is no rounding error
-		my $nonces_this_chunk = ($i == $chunks-1) ? ($nonces-$startchunk) : $nonces_per_chunk;
+		my $nonces_this_chunk = ($i == $chunks-1) ? ($nonces-$i*$nonces_per_chunk) : $nonces_per_chunk;
 		my $cmd = "nice $bin -k $key -x 1 -d $plotdir -s $startchunk -n $nonces_this_chunk -t $threads";
 		print "Plotting chunk ",$i+1,"/$chunks: $cmd\n";
 		system($cmd);
